@@ -185,4 +185,31 @@ body {
 .format-badge-json {
     background-color: #e2e3e5;
     color: #41464b;
+}
+
+/* Client-side processing styles */
+.pulsate {
+    animation: pulsate 1s ease-in-out;
+}
+
+@keyframes pulsate {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; transform: scale(1.03); }
+    100% { opacity: 0.6; }
+}
+
+/* Make the client mode switch more prominent */
+#clientSideProcessing {
+    height: 1.25rem;
+    width: 2.5rem;
+}
+
+#clientSideProcessing:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+#clientModeNote {
+    display: inline-block;
+    font-weight: 500;
 } 

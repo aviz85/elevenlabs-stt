@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorMessage = document.getElementById('errorMessage');
     const errorDetails = document.getElementById('errorDetails');
     const errorDetailsText = document.getElementById('errorDetailsText');
+    const clientSideProcessingToggle = document.getElementById('clientSideProcessing');
+    const clientModeNote = document.getElementById('clientModeNote');
     
     // Form elements
     const modelIdSelect = document.getElementById('modelId');
@@ -41,7 +43,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const additionalFormatsContent = document.getElementById('additionalFormatsContent');
     const rawResponseData = document.getElementById('rawResponseData');
     
+    // Initialize client-side API handler
+    const elevenLabsClient = new ElevenLabsClient();
+    
     let selectedFile = null;
+    let isClientSideProcessing = false;
+    
+    // Toggle client-side processing
+    clientSideProcessingToggle.addEventListener('change', function() {
+        isClientSideProcessing = this.checked;
+        
+        // Show/hide client mode note with animation
+        if (isClientSideProcessing) {
+            clientModeNote.classList.add('pulsate');
+            setTimeout(() => {
+                clientModeNote.classList.remove('pulsate');
+            }, 2000);
+        }
+    });
     
     // Toggle API Key visibility
     toggleApiKeyBtn.addEventListener('click', function() {
@@ -324,40 +343,64 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get additional formats with their configurations
         const additionalFormats = getAdditionalFormats();
         
-        // Create form data
-        const formData = new FormData();
-        formData.append('apiKey', apiKeyInput.value);
-        formData.append('audioFile', selectedFile);
-        formData.append('modelId', modelIdSelect.value);
-        formData.append('languageCode', languageCodeInput.value);
-        formData.append('tagAudioEvents', tagAudioEventsCheck.checked);
-        formData.append('diarize', diarizeCheck.checked);
-        formData.append('enableLogging', enableLoggingCheck.checked);
-        formData.append('numSpeakers', numSpeakersInput.value);
-        formData.append('timestampsGranularity', timestampsGranularitySelect.value);
-        formData.append('fileFormat', fileFormatSelect.value);
-        formData.append('additionalFormats', JSON.stringify(additionalFormats));
-        
         try {
-            const response = await fetch('/api/transcribe', {
-                method: 'POST',
-                body: formData
-            });
+            let data;
             
-            const data = await response.json();
+            // Choose between client-side and server-side processing
+            if (isClientSideProcessing) {
+                // Client-side processing (direct to ElevenLabs)
+                const params = {
+                    modelId: modelIdSelect.value,
+                    languageCode: languageCodeInput.value,
+                    tagAudioEvents: tagAudioEventsCheck.checked,
+                    diarize: diarizeCheck.checked,
+                    numSpeakers: numSpeakersInput.value,
+                    timestampsGranularity: timestampsGranularitySelect.value,
+                    fileFormat: fileFormatSelect.value,
+                    enableLogging: enableLoggingCheck.checked
+                };
+                
+                data = await elevenLabsClient.transcribeAudio(
+                    selectedFile, 
+                    apiKeyInput.value, 
+                    params, 
+                    additionalFormats
+                );
+                
+            } else {
+                // Server-side processing (our backend API)
+                const formData = new FormData();
+                formData.append('apiKey', apiKeyInput.value);
+                formData.append('audioFile', selectedFile);
+                formData.append('modelId', modelIdSelect.value);
+                formData.append('languageCode', languageCodeInput.value);
+                formData.append('tagAudioEvents', tagAudioEventsCheck.checked);
+                formData.append('diarize', diarizeCheck.checked);
+                formData.append('enableLogging', enableLoggingCheck.checked);
+                formData.append('numSpeakers', numSpeakersInput.value);
+                formData.append('timestampsGranularity', timestampsGranularitySelect.value);
+                formData.append('fileFormat', fileFormatSelect.value);
+                formData.append('additionalFormats', JSON.stringify(additionalFormats));
+                
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    // Handle API errors
+                    const errorData = await response.json();
+                    throw {
+                        status: response.status,
+                        data: errorData
+                    };
+                }
+                
+                data = await response.json();
+            }
             
             // Hide loading overlay
             loadingOverlay.classList.add('d-none');
-            
-            if (!response.ok) {
-                // Handle API errors
-                showError(
-                    data.error || `Error: ${response.status}`, 
-                    data.message || 'Transcription failed', 
-                    data.details
-                );
-                return;
-            }
             
             // Display results
             displayResults(data);
@@ -366,12 +409,33 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide loading overlay
             loadingOverlay.classList.add('d-none');
             
-            // Show error
-            showError(
-                'Connection Error', 
-                'Failed to connect to the server. Please check your internet connection.',
-                error
-            );
+            console.error('Transcription error:', error);
+            
+            // Extract error details
+            let errorTitle = 'Transcription Error';
+            let errorMsg = 'An unexpected error occurred during transcription.';
+            let errorDetails = null;
+            
+            if (error.status) {
+                errorTitle = `Error ${error.status}`;
+                
+                if (error.data) {
+                    if (error.data.error) {
+                        errorMsg = error.data.error;
+                    } else if (error.data.message) {
+                        errorMsg = error.data.message;
+                    } else if (error.data.detail && error.data.detail.message) {
+                        errorMsg = error.data.detail.message;
+                    }
+                    
+                    errorDetails = error.data;
+                }
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+            
+            // Show error modal
+            showError(errorTitle, errorMsg, errorDetails);
         }
     });
     
