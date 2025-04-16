@@ -106,4 +106,83 @@ body {
 /* Loading Overlay */
 #loadingOverlay {
     z-index: 9999;
+}
+
+/* Highlight effect for auto-changed settings */
+.highlight-change {
+    animation: highlight-pulse 2s;
+}
+
+@keyframes highlight-pulse {
+    0% { background-color: transparent; }
+    50% { background-color: rgba(255, 193, 7, 0.3); }
+    100% { background-color: transparent; }
+}
+
+/* Additional format styles */
+.format-preview {
+    max-height: 300px;
+    overflow: auto;
+}
+
+.format-preview textarea {
+    font-family: monospace;
+    font-size: 0.9rem;
+    resize: none;
+    white-space: pre;
+}
+
+.format-preview iframe {
+    border: 1px solid #dee2e6;
+    background: white;
+}
+
+/* Format card transitions */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Format label badges for different types */
+.format-badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 0.75em;
+    font-weight: 700;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+}
+
+.format-badge-txt {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.format-badge-srt, .format-badge-vtt {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.format-badge-html {
+    background-color: #cfe2ff;
+    color: #084298;
+}
+
+.format-badge-docx {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.format-badge-pdf {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.format-badge-json {
+    background-color: #e2e3e5;
+    color: #41464b;
 } 

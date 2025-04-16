@@ -87,8 +87,12 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
     }
     
     // Boolean parameters
-    formData.append('tag_audio_events', req.body.tagAudioEvents === 'true');
-    formData.append('diarize', req.body.diarize === 'true');
+    const tagAudioEvents = req.body.tagAudioEvents === 'true';
+    const diarize = req.body.diarize === 'true';
+    const timestampsGranularity = req.body.timestampsGranularity || 'word';
+    
+    formData.append('tag_audio_events', tagAudioEvents);
+    formData.append('diarize', diarize);
     
     // Add num_speakers if provided and greater than 1
     if (req.body.numSpeakers && parseInt(req.body.numSpeakers) > 1) {
@@ -96,8 +100,8 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
     }
     
     // Add timestamps_granularity if provided
-    if (req.body.timestampsGranularity) {
-      formData.append('timestamps_granularity', req.body.timestampsGranularity);
+    if (timestampsGranularity) {
+      formData.append('timestamps_granularity', timestampsGranularity);
     }
     
     // Handle additional formats
@@ -106,6 +110,17 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
       try {
         additionalFormats = JSON.parse(req.body.additionalFormats);
         if (additionalFormats.length > 0) {
+          // Validate requirements for additional formats
+          if (!diarize || timestampsGranularity === 'none') {
+            return res.status(400).json({
+              error: 'Invalid parameters',
+              message: 'When using additional formats, diarization and timestamps must be enabled.',
+              detail: {
+                status: 'invalid_parameters',
+                message: 'Requesting additional formats must have diarization and timestamps enabled.'
+              }
+            });
+          }
           formData.append('additional_formats', JSON.stringify(additionalFormats));
         }
       } catch (e) {

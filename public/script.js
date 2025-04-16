@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const transcriptText = document.getElementById('transcriptText');
     const wordDetailsSection = document.getElementById('wordDetailsSection');
     const wordDetailsTable = document.getElementById('wordDetailsTable');
+    const toggleWordDetailsBtn = document.getElementById('toggleWordDetails');
     const additionalFormatsSection = document.getElementById('additionalFormatsSection');
     const additionalFormatsContent = document.getElementById('additionalFormatsContent');
     const rawResponseData = document.getElementById('rawResponseData');
@@ -49,6 +50,18 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleApiKeyBtn.innerHTML = type === 'password' ? 
             '<i class="bi bi-eye"></i>' : 
             '<i class="bi bi-eye-slash"></i>';
+    });
+    
+    // Toggle Word Details visibility
+    toggleWordDetailsBtn.addEventListener('click', function() {
+        const isHidden = wordDetailsSection.classList.contains('d-none');
+        if (isHidden) {
+            wordDetailsSection.classList.remove('d-none');
+            toggleWordDetailsBtn.innerHTML = '<i class="bi bi-eye-slash"></i> Hide Details';
+        } else {
+            wordDetailsSection.classList.add('d-none');
+            toggleWordDetailsBtn.innerHTML = '<i class="bi bi-eye"></i> Show Details';
+        }
     });
     
     // Validate API Key
@@ -74,6 +87,59 @@ document.addEventListener('DOMContentLoaded', function() {
                     configDiv.classList.remove('d-none');
                 } else {
                     configDiv.classList.add('d-none');
+                }
+            }
+            
+            // Check if any format is selected
+            const anyFormatSelected = Array.from(formatCheckboxes).some(cb => cb.checked);
+            
+            // Auto-enable diarize and timestamps when formats are selected
+            if (anyFormatSelected) {
+                // Enable diarization if not already enabled
+                if (!diarizeCheck.checked) {
+                    diarizeCheck.checked = true;
+                    // Add a highlight effect to show it was auto-enabled
+                    diarizeCheck.parentElement.classList.add('highlight-change');
+                    setTimeout(() => {
+                        diarizeCheck.parentElement.classList.remove('highlight-change');
+                    }, 2000);
+                }
+                
+                // Ensure timestamps granularity is not "none"
+                if (timestampsGranularitySelect.value === "none") {
+                    timestampsGranularitySelect.value = "word";
+                    // Add a highlight effect to show it was auto-changed
+                    timestampsGranularitySelect.classList.add('highlight-change');
+                    setTimeout(() => {
+                        timestampsGranularitySelect.classList.remove('highlight-change');
+                    }, 2000);
+                }
+                
+                // Show notice if it doesn't exist yet
+                if (!document.getElementById('formatRequirementsNotice')) {
+                    const notice = document.createElement('div');
+                    notice.id = 'formatRequirementsNotice';
+                    notice.className = 'alert alert-info mt-3';
+                    notice.innerHTML = '<i class="bi bi-info-circle-fill me-2"></i> <strong>Note:</strong> When using additional formats, diarization and timestamps must be enabled.';
+                    
+                    // Find the formats card
+                    const headings = document.querySelectorAll('.card-header h5');
+                    let formatsCard = null;
+                    headings.forEach(heading => {
+                        if (heading.textContent.includes('Additional Export Formats')) {
+                            formatsCard = heading.closest('.card');
+                        }
+                    });
+                    
+                    if (formatsCard) {
+                        formatsCard.appendChild(notice);
+                    }
+                }
+            } else {
+                // Remove the notice if no formats are selected
+                const notice = document.getElementById('formatRequirementsNotice');
+                if (notice) {
+                    notice.remove();
                 }
             }
         });
@@ -311,132 +377,268 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Display transcription results
     function displayResults(data) {
-        // Set language info
-        detectedLanguage.textContent = data.language_code || 'N/A';
-        languageProbability.textContent = 
-            data.language_probability ? `${(data.language_probability * 100).toFixed(2)}%` : 'N/A';
-        
-        // Set transcript text
-        transcriptText.textContent = data.text || 'No transcript available';
-        
-        // Check if text is in Hebrew or another RTL language
-        if (data.language_code === 'heb' || data.language_code === 'ar') {
-            transcriptText.setAttribute('dir', 'rtl');
-        } else {
-            transcriptText.removeAttribute('dir');
-        }
-        
-        // Word details
-        if (data.words && data.words.length > 0) {
-            const wordData = data.words.filter(word => word.type === 'word');
-            
-            if (wordData.length > 0) {
-                wordDetailsTable.innerHTML = '';
-                
-                wordData.forEach(word => {
-                    const row = document.createElement('tr');
-                    
-                    const wordCell = document.createElement('td');
-                    wordCell.textContent = word.text;
-                    if (data.language_code === 'heb' || data.language_code === 'ar') {
-                        wordCell.setAttribute('dir', 'rtl');
-                    }
-                    
-                    const startCell = document.createElement('td');
-                    startCell.textContent = word.start ? `${word.start.toFixed(2)}s` : 'N/A';
-                    
-                    const endCell = document.createElement('td');
-                    endCell.textContent = word.end ? `${word.end.toFixed(2)}s` : 'N/A';
-                    
-                    const speakerCell = document.createElement('td');
-                    speakerCell.textContent = word.speaker_id || 'N/A';
-                    
-                    row.appendChild(wordCell);
-                    row.appendChild(startCell);
-                    row.appendChild(endCell);
-                    row.appendChild(speakerCell);
-                    
-                    wordDetailsTable.appendChild(row);
-                });
-                
-                wordDetailsSection.classList.remove('d-none');
-            } else {
-                wordDetailsSection.classList.add('d-none');
-            }
-        } else {
-            wordDetailsSection.classList.add('d-none');
-        }
-        
-        // Additional formats
-        if (data.additional_formats && data.additional_formats.length > 0) {
-            additionalFormatsContent.innerHTML = '';
-            
-            data.additional_formats.forEach(format => {
-                const formatName = format.requested_format || format.format || 'Unknown';
-                const formatContent = format.content || '';
-                const fileExtension = format.file_extension || formatName;
-                
-                const formatContainer = document.createElement('div');
-                formatContainer.className = 'format-container';
-                
-                const formatTitle = document.createElement('h6');
-                formatTitle.textContent = formatName.toUpperCase();
-                formatContainer.appendChild(formatTitle);
-                
-                const formatTextArea = document.createElement('textarea');
-                formatTextArea.className = 'form-control mb-2';
-                formatTextArea.rows = 5;
-                formatTextArea.readOnly = true;
-                formatTextArea.value = formatContent;
-                formatContainer.appendChild(formatTextArea);
-                
-                const downloadButton = document.createElement('button');
-                downloadButton.className = 'btn btn-sm btn-outline-primary';
-                downloadButton.innerHTML = `<i class="bi bi-download me-1"></i>Download ${formatName.toUpperCase()}`;
-                downloadButton.addEventListener('click', () => {
-                    let content = formatContent;
-                    
-                    // Handle base64 encoded content
-                    if (format.is_base64_encoded) {
-                        try {
-                            content = atob(content);
-                        } catch (e) {
-                            console.error('Failed to decode base64 content:', e);
-                        }
-                    }
-                    
-                    // Determine the appropriate MIME type for the download
-                    let mimeType = format.content_type || 'text/plain';
-                    if (formatName === 'docx') {
-                        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                    } else if (formatName === 'pdf') {
-                        mimeType = 'application/pdf';
-                    } else if (formatName === 'html') {
-                        mimeType = 'text/html';
-                    } else if (formatName === 'segmented_json') {
-                        mimeType = 'application/json';
-                    }
-                    
-                    downloadTextFile(content, `transcript.${fileExtension}`, mimeType, format.is_base64_encoded);
-                });
-                formatContainer.appendChild(downloadButton);
-                
-                additionalFormatsContent.appendChild(formatContainer);
-            });
-            
-            additionalFormatsSection.classList.remove('d-none');
-        } else {
-            additionalFormatsSection.classList.add('d-none');
-        }
-        
-        // Raw JSON response
-        rawResponseData.textContent = JSON.stringify(data, null, 2);
+        // Hide loading overlay
+        loadingOverlay.classList.add('d-none');
         
         // Show results section
         resultsSection.classList.remove('d-none');
         
-        // Scroll to results
-        resultsSection.scrollIntoView({ behavior: 'smooth' });
+        // Set detected language
+        if (data.detected_language) {
+            detectedLanguage.textContent = getLanguageName(data.detected_language.language_code) || data.detected_language.language_code;
+            languageProbability.textContent = (data.detected_language.probability * 100).toFixed(2) + '%';
+        } else {
+            detectedLanguage.textContent = 'Not available';
+            languageProbability.textContent = 'N/A';
+        }
+        
+        // Set transcript text
+        if (data.text) {
+            transcriptText.textContent = data.text;
+            
+            // Handle RTL languages (Hebrew, Arabic, etc.)
+            if (data.detected_language && ['he', 'heb', 'ar', 'ara'].includes(data.detected_language.language_code)) {
+                transcriptText.dir = 'rtl';
+            } else {
+                transcriptText.dir = 'ltr';
+            }
+        } else {
+            transcriptText.textContent = 'No transcript available';
+        }
+        
+        // Reset word details
+        wordDetailsTable.innerHTML = '';
+        
+        // Add word-level details if available
+        if (data.words && data.words.length > 0) {
+            // Word details section is now hidden by default
+            // Keep it hidden until the user clicks the toggle button
+            
+            // Still populate the table
+            data.words.forEach(word => {
+                const row = document.createElement('tr');
+                
+                // Word text
+                const wordCell = document.createElement('td');
+                wordCell.textContent = word.text;
+                row.appendChild(wordCell);
+                
+                // Start time
+                const startCell = document.createElement('td');
+                startCell.textContent = formatTime(word.start_time_s);
+                row.appendChild(startCell);
+                
+                // End time
+                const endCell = document.createElement('td');
+                endCell.textContent = formatTime(word.end_time_s);
+                row.appendChild(endCell);
+                
+                // Speaker (if available)
+                const speakerCell = document.createElement('td');
+                speakerCell.textContent = word.speaker || 'N/A';
+                row.appendChild(speakerCell);
+                
+                wordDetailsTable.appendChild(row);
+            });
+        } else {
+            // Hide word details section if no words data
+            wordDetailsSection.classList.add('d-none');
+            toggleWordDetailsBtn.parentElement.classList.add('d-none');
+        }
+        
+        // Show the toggle button container if we have word details
+        if (data.words && data.words.length > 0) {
+            toggleWordDetailsBtn.parentElement.classList.remove('d-none');
+        }
+        
+        // Handle additional formats
+        displayAdditionalFormats(data);
+        
+        // Set raw response data
+        rawResponseData.textContent = JSON.stringify(data, null, 2);
+    }
+    
+    // Format time in seconds to readable format
+    function formatTime(seconds) {
+        if (seconds === undefined || seconds === null) return 'N/A';
+        
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = (seconds % 60).toFixed(2);
+        return `${minutes}:${remainingSeconds.padStart(5, '0')}`;
+    }
+    
+    // Get language name from ISO code
+    function getLanguageName(code) {
+        const languages = {
+            'en': 'English',
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'ru': 'Russian',
+            'zh': 'Chinese',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ar': 'Arabic',
+            'hi': 'Hindi',
+            'he': 'Hebrew',
+            'heb': 'Hebrew',
+            'tr': 'Turkish',
+            'pl': 'Polish',
+            'cs': 'Czech',
+            'sv': 'Swedish',
+            'da': 'Danish',
+            'fi': 'Finnish',
+            'el': 'Greek',
+            'hu': 'Hungarian',
+            'ro': 'Romanian',
+            'sk': 'Slovak',
+            'uk': 'Ukrainian',
+            'bg': 'Bulgarian',
+            'hr': 'Croatian',
+            'lt': 'Lithuanian',
+            'lv': 'Latvian',
+            'et': 'Estonian',
+            'sl': 'Slovenian'
+        };
+        
+        return languages[code] || null;
+    }
+    
+    // Display additional formats
+    function displayAdditionalFormats(data) {
+        // Reset additional formats section
+        additionalFormatsContent.innerHTML = '';
+        
+        // Check if additional formats exist
+        if (data.additional_formats && data.additional_formats.length > 0) {
+            // Show additional formats section
+            additionalFormatsSection.classList.remove('d-none');
+            
+            // Create a container for the formats
+            const formatsContainer = document.createElement('div');
+            formatsContainer.className = 'row';
+            
+            // Process each format
+            data.additional_formats.forEach(format => {
+                // Create a card for each format
+                const formatCard = document.createElement('div');
+                formatCard.className = 'col-lg-6 col-md-12 mb-3';
+                
+                // Determine format name for display
+                const formatName = format.requested_format || format.format || 'Unknown Format';
+                const fileExtension = format.file_extension || formatName;
+                const formatClass = `format-badge-${formatName.toLowerCase()}`;
+                
+                // Create card HTML
+                formatCard.innerHTML = `
+                    <div class="card h-100">
+                        <div class="card-header bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 text-uppercase">${formatName}</h6>
+                                    <span class="format-badge ${formatClass}">${fileExtension}</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary download-btn">
+                                    <i class="bi bi-download me-1"></i>Download
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="format-preview"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // Append to container
+                formatsContainer.appendChild(formatCard);
+                
+                // Get content and preview container
+                const content = format.content || '';
+                const previewContainer = formatCard.querySelector('.format-preview');
+                const downloadBtn = formatCard.querySelector('.download-btn');
+                
+                // Determine content type and create appropriate preview
+                let mimeType = format.content_type || 'text/plain';
+                const isBase64 = format.is_base64_encoded || false;
+                
+                // Create preview based on format type
+                if (formatName.toLowerCase() === 'html') {
+                    // For HTML, create an iframe preview
+                    const iframe = document.createElement('iframe');
+                    iframe.className = 'w-100 border-0';
+                    iframe.style.height = '200px';
+                    previewContainer.appendChild(iframe);
+                    
+                    // If base64 encoded, decode first
+                    let htmlContent = isBase64 ? atob(content) : content;
+                    
+                    // Set content to iframe
+                    setTimeout(() => {
+                        const doc = iframe.contentDocument || iframe.contentWindow.document;
+                        doc.open();
+                        doc.write(htmlContent);
+                        doc.close();
+                    }, 0);
+                    
+                } else if (['docx', 'pdf'].includes(formatName.toLowerCase())) {
+                    // For binary formats like DOCX, PDF - just show download option
+                    previewContainer.innerHTML = `
+                        <div class="text-center p-4 bg-light rounded">
+                            <i class="bi bi-file-earmark-${formatName.toLowerCase() === 'pdf' ? 'pdf' : 'word'} fs-1 text-primary"></i>
+                            <p class="mt-3 mb-0">Preview not available for ${formatName.toUpperCase()} format.</p>
+                        </div>
+                    `;
+                    
+                    // Set correct mime type
+                    if (formatName.toLowerCase() === 'docx') {
+                        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                    } else if (formatName.toLowerCase() === 'pdf') {
+                        mimeType = 'application/pdf';
+                    }
+                    
+                } else if (['txt', 'srt', 'vtt', 'json', 'segmented_json'].includes(formatName.toLowerCase())) {
+                    // For text-based formats, show in textarea
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'form-control';
+                    textarea.readOnly = true;
+                    textarea.rows = 8;
+                    
+                    // If base64 encoded, decode first
+                    textarea.value = isBase64 ? atob(content) : content;
+                    
+                    previewContainer.appendChild(textarea);
+                    
+                    // Set correct mime type
+                    if (formatName.toLowerCase() === 'json' || formatName.toLowerCase() === 'segmented_json') {
+                        mimeType = 'application/json';
+                    }
+                    
+                } else {
+                    // For other formats
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'form-control';
+                    textarea.readOnly = true;
+                    textarea.rows = 8;
+                    textarea.value = isBase64 ? '[Base64 encoded content]' : content;
+                    previewContainer.appendChild(textarea);
+                }
+                
+                // Add download functionality
+                downloadBtn.addEventListener('click', () => {
+                    downloadTextFile(content, `transcript.${fileExtension}`, mimeType, isBase64);
+                });
+            });
+            
+            // Add the formats container to the page
+            additionalFormatsContent.appendChild(formatsContainer);
+            
+        } else {
+            // Hide additional formats section if no formats
+            additionalFormatsSection.classList.add('d-none');
+        }
     }
     
     // Download text file
