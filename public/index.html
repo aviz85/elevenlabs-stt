@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs Speech-to-Text Tester</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-light">
+    <div class="container my-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex align-items-center">
+                <h1 class="h3 mb-0"><i class="bi bi-mic-fill me-2"></i>ElevenLabs Speech-to-Text Tester</h1>
+            </div>
+            
+            <div class="card-body">
+                <!-- API Key Input -->
+                <div class="mb-4">
+                    <label for="apiKey" class="form-label fw-bold">ElevenLabs API Key</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="apiKey" placeholder="Enter your API key">
+                        <button class="btn btn-outline-secondary" type="button" id="toggleApiKey">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="form-text">Your API key is required for transcription</div>
+                </div>
+
+                <!-- File Upload Section -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Upload Audio File</label>
+                    <div class="upload-area p-4 border rounded text-center" id="dropArea">
+                        <i class="bi bi-cloud-arrow-up display-4 text-primary"></i>
+                        <p class="mt-2">Drag & drop your audio file here or</p>
+                        <input type="file" id="fileInput" accept="audio/*,video/*" class="d-none">
+                        <button class="btn btn-primary" id="browseButton">Browse Files</button>
+                        <p class="small text-muted mt-2">MP3, WAV, M4A, MP4, MPEG, MPGA, WEBM (max 100MB)</p>
+                    </div>
+                    <div id="filePreview" class="mt-2 d-none">
+                        <div class="d-flex align-items-center p-2 border rounded bg-white">
+                            <i class="bi bi-file-earmark-music text-primary fs-3 me-2"></i>
+                            <div class="flex-grow-1">
+                                <div id="fileName" class="text-truncate"></div>
+                                <div id="fileSize" class="small text-muted"></div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" id="removeFile">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parameters Sections -->
+                <div class="row mb-4">
+                    <!-- Basic Parameters -->
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Basic Parameters</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="modelId" class="form-label">Model ID</label>
+                                    <select class="form-select" id="modelId">
+                                        <option value="scribe_v1" selected>scribe_v1</option>
+                                        <option value="scribe_v1_experimental">scribe_v1_experimental</option>
+                                    </select>
+                                    <div class="form-text">Model used for transcription</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="languageCode" class="form-label">Language Code</label>
+                                    <input type="text" class="form-control" id="languageCode" value="heb" placeholder="e.g., en, heb, fr">
+                                    <div class="form-text">ISO-639-1 or ISO-639-3 language code (Default: Hebrew)</div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="tagAudioEvents" checked>
+                                    <label class="form-check-label" for="tagAudioEvents">Tag Audio Events</label>
+                                    <div class="form-text">Tag audio events like (laughter), (footsteps), etc.</div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="diarize">
+                                    <label class="form-check-label" for="diarize">Diarize (Speaker Identification)</label>
+                                    <div class="form-text">Annotate which speaker is currently talking</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Parameters -->
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Advanced Parameters</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enableLogging" checked>
+                                    <label class="form-check-label" for="enableLogging">Enable Logging</label>
+                                    <div class="form-text">When disabled, zero retention mode will be used</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="numSpeakers" class="form-label">Number of Speakers</label>
+                                    <input type="number" class="form-control" id="numSpeakers" min="1" max="32" value="1">
+                                    <div class="form-text">Maximum amount of speakers (1-32)</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="timestampsGranularity" class="form-label">Timestamps Granularity</label>
+                                    <select class="form-select" id="timestampsGranularity">
+                                        <option value="none">None</option>
+                                        <option value="word" selected>Word</option>
+                                        <option value="character">Character</option>
+                                    </select>
+                                    <div class="form-text">Granularity of the timestamps in the transcription</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="fileFormat" class="form-label">File Format</label>
+                                    <select class="form-select" id="fileFormat">
+                                        <option value="other" selected>Other</option>
+                                        <option value="pcm_s16le_16">PCM S16LE 16kHz</option>
+                                    </select>
+                                    <div class="form-text">Format of input audio</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Formats Section -->
+                <div class="mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Additional Export Formats</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <!-- TXT Format -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="txtFormat" data-format="txt">
+                                            <label class="form-check-label fw-bold" for="txtFormat">TXT (Plain Text)</label>
+                                        </div>
+                                        <div class="format-config ms-4 mt-2 d-none" id="txtConfig">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="txtIncludeSpeakers" checked>
+                                                <label class="form-check-label" for="txtIncludeSpeakers">Include Speakers</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="txtIncludeTimestamps" checked>
+                                                <label class="form-check-label" for="txtIncludeTimestamps">Include Timestamps</label>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="txtMaxCharsPerLine" class="form-label small">Max Characters Per Line</label>
+                                                <input type="number" class="form-control form-control-sm" id="txtMaxCharsPerLine" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="txtMaxSegmentChars" class="form-label small">Max Segment Chars</label>
+                                                <input type="number" class="form-control form-control-sm" id="txtMaxSegmentChars" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="txtMaxSegmentDuration" class="form-label small">Max Segment Duration (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="txtMaxSegmentDuration" min="0" step="0.1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="txtSegmentOnSilence" class="form-label small">Segment on Silence Longer Than (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="txtSegmentOnSilence" min="0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- SRT Format -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="srtFormat" data-format="srt">
+                                            <label class="form-check-label fw-bold" for="srtFormat">SRT (SubRip)</label>
+                                        </div>
+                                        <div class="format-config ms-4 mt-2 d-none" id="srtConfig">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="srtIncludeSpeakers">
+                                                <label class="form-check-label" for="srtIncludeSpeakers">Include Speakers</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="srtIncludeTimestamps" checked>
+                                                <label class="form-check-label" for="srtIncludeTimestamps">Include Timestamps</label>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="srtMaxCharsPerLine" class="form-label small">Max Characters Per Line</label>
+                                                <input type="number" class="form-control form-control-sm" id="srtMaxCharsPerLine" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="srtMaxSegmentChars" class="form-label small">Max Segment Chars</label>
+                                                <input type="number" class="form-control form-control-sm" id="srtMaxSegmentChars" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="srtMaxSegmentDuration" class="form-label small">Max Segment Duration (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="srtMaxSegmentDuration" min="0" step="0.1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="srtSegmentOnSilence" class="form-label small">Segment on Silence Longer Than (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="srtSegmentOnSilence" min="0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- VTT Format - Keeping this for compatibility -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="vttFormat" data-format="vtt">
+                                            <label class="form-check-label fw-bold" for="vttFormat">VTT (WebVTT)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <!-- DOCX Format -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="docxFormat" data-format="docx">
+                                            <label class="form-check-label fw-bold" for="docxFormat">DOCX (Microsoft Word)</label>
+                                        </div>
+                                        <div class="format-config ms-4 mt-2 d-none" id="docxConfig">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="docxIncludeSpeakers" checked>
+                                                <label class="form-check-label" for="docxIncludeSpeakers">Include Speakers</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="docxIncludeTimestamps" checked>
+                                                <label class="form-check-label" for="docxIncludeTimestamps">Include Timestamps</label>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="docxMaxSegmentChars" class="form-label small">Max Segment Chars</label>
+                                                <input type="number" class="form-control form-control-sm" id="docxMaxSegmentChars" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="docxMaxSegmentDuration" class="form-label small">Max Segment Duration (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="docxMaxSegmentDuration" min="0" step="0.1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="docxSegmentOnSilence" class="form-label small">Segment on Silence Longer Than (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="docxSegmentOnSilence" min="0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- HTML Format -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="htmlFormat" data-format="html">
+                                            <label class="form-check-label fw-bold" for="htmlFormat">HTML</label>
+                                        </div>
+                                        <div class="format-config ms-4 mt-2 d-none" id="htmlConfig">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="htmlIncludeSpeakers" checked>
+                                                <label class="form-check-label" for="htmlIncludeSpeakers">Include Speakers</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="htmlIncludeTimestamps" checked>
+                                                <label class="form-check-label" for="htmlIncludeTimestamps">Include Timestamps</label>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="htmlMaxSegmentChars" class="form-label small">Max Segment Chars</label>
+                                                <input type="number" class="form-control form-control-sm" id="htmlMaxSegmentChars" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="htmlMaxSegmentDuration" class="form-label small">Max Segment Duration (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="htmlMaxSegmentDuration" min="0" step="0.1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="htmlSegmentOnSilence" class="form-label small">Segment on Silence Longer Than (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="htmlSegmentOnSilence" min="0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- PDF Format -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="pdfFormat" data-format="pdf">
+                                            <label class="form-check-label fw-bold" for="pdfFormat">PDF</label>
+                                        </div>
+                                        <div class="format-config ms-4 mt-2 d-none" id="pdfConfig">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="pdfIncludeSpeakers" checked>
+                                                <label class="form-check-label" for="pdfIncludeSpeakers">Include Speakers</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="pdfIncludeTimestamps" checked>
+                                                <label class="form-check-label" for="pdfIncludeTimestamps">Include Timestamps</label>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="pdfMaxSegmentChars" class="form-label small">Max Segment Chars</label>
+                                                <input type="number" class="form-control form-control-sm" id="pdfMaxSegmentChars" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="pdfMaxSegmentDuration" class="form-label small">Max Segment Duration (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="pdfMaxSegmentDuration" min="0" step="0.1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="pdfSegmentOnSilence" class="form-label small">Segment on Silence Longer Than (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="pdfSegmentOnSilence" min="0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Segmented JSON Format -->
+                                    <div class="format-options mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox" id="segmentedJsonFormat" data-format="segmented_json">
+                                            <label class="form-check-label fw-bold" for="segmentedJsonFormat">Segmented JSON</label>
+                                        </div>
+                                        <div class="format-config ms-4 mt-2 d-none" id="segmentedJsonConfig">
+                                            <div class="mb-2">
+                                                <label for="segmentedJsonMaxSegmentChars" class="form-label small">Max Segment Chars</label>
+                                                <input type="number" class="form-control form-control-sm" id="segmentedJsonMaxSegmentChars" min="1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="segmentedJsonMaxSegmentDuration" class="form-label small">Max Segment Duration (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="segmentedJsonMaxSegmentDuration" min="0" step="0.1">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label for="segmentedJsonSegmentOnSilence" class="form-label small">Segment on Silence Longer Than (seconds)</label>
+                                                <input type="number" class="form-control form-control-sm" id="segmentedJsonSegmentOnSilence" min="0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Transcribe Button -->
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" id="transcribeButton" disabled>
+                        <i class="bi bi-soundwave me-2"></i>Transcribe
+                    </button>
+                </div>
+
+                <!-- Results Section (initially hidden) -->
+                <div id="resultsSection" class="mt-4 d-none">
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Transcription Results</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <strong>Detected Language:</strong> <span id="detectedLanguage"></span>
+                                    </div>
+                                    <div>
+                                        <strong>Language Probability:</strong> <span id="languageProbability"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h5>Transcript</h5>
+                            <div class="p-3 bg-light rounded mb-3">
+                                <p id="transcriptText" class="mb-0"></p>
+                            </div>
+                            
+                            <div id="wordDetailsSection" class="mb-3 d-none">
+                                <h5>Word-level Details</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Word</th>
+                                                <th>Start Time</th>
+                                                <th>End Time</th>
+                                                <th>Speaker</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="wordDetailsTable">
+                                            <!-- Word details will be added here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div id="additionalFormatsSection" class="d-none">
+                                <h5>Additional Formats</h5>
+                                <div id="additionalFormatsContent">
+                                    <!-- Additional formats content will be added here -->
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#rawResponseCollapse">
+                                    View Raw JSON Response
+                                </button>
+                                <div class="collapse mt-2" id="rawResponseCollapse">
+                                    <pre class="bg-light p-3 rounded"><code id="rawResponseData"></code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="card-footer bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#instructionsCollapse">
+                        <i class="bi bi-question-circle me-1"></i>How to Use
+                    </button>
+                    <span class="text-muted small">Created for testing ElevenLabs Speech-to-Text API parameters</span>
+                </div>
+                
+                <div class="collapse mt-3" id="instructionsCollapse">
+                    <div class="card card-body">
+                        <h5>Instructions</h5>
+                        <ol>
+                            <li>Enter your ElevenLabs API key</li>
+                            <li>Upload an audio or video file</li>
+                            <li>Configure parameters:
+                                <ul>
+                                    <li><strong>Model ID:</strong> Choose the transcription model</li>
+                                    <li><strong>Language Code:</strong> Default is Hebrew ('heb')</li>
+                                    <li><strong>Tag Audio Events:</strong> Include non-speech events like (laughter)</li>
+                                    <li><strong>Diarize:</strong> Identify different speakers</li>
+                                    <li><strong>Number of Speakers:</strong> Set maximum number of speakers</li>
+                                    <li><strong>Timestamps Granularity:</strong> Level of timing detail</li>
+                                    <li><strong>Additional Formats:</strong> Export to subtitle formats and other document types</li>
+                                </ul>
+                            </li>
+                            <li>Click "Transcribe" to process the audio</li>
+                        </ol>
+                        
+                        <h5>Notes</h5>
+                        <ul>
+                            <li>File size must be less than 100MB</li>
+                            <li>The API supports all major audio and video formats</li>
+                            <li>Additional formats have various configuration options that affect the output</li>
+                        </ul>
+                        
+                        <h5>Troubleshooting</h5>
+                        <ul>
+                            <li>If you see a 403 error, check that your API key is correct and your account has access to Speech-to-Text</li>
+                            <li>Make sure your account has sufficient credits for transcription</li>
+                            <li>Verify that your audio file is in a supported format</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Modal -->
+        <div class="modal fade" id="errorModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Error</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="errorMessage" class="mb-0"></p>
+                        <div id="errorDetails" class="mt-3 d-none">
+                            <h6>Details:</h6>
+                            <pre class="bg-light p-2 rounded"><code id="errorDetailsText"></code></pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none">
+        <div class="d-flex justify-content-center align-items-center h-100 bg-dark bg-opacity-50">
+            <div class="card p-4 shadow">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border text-primary me-3" role="status"></div>
+                    <span class="h5 mb-0">Transcribing audio...</span>
+                </div>
+                <p class="text-muted mb-0 mt-2">This may take a minute depending on the file size.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html> 
