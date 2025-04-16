@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const axios = require('axios');
-const fs = require('fs');
 const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
 
@@ -20,21 +19,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Serve static files from the public directory
 app.use(express.static('public'));
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    // Use the original file name
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-// Create uploads directory if it doesn't exist
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
+// Configure multer for in-memory file storage (for serverless environments)
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
@@ -72,8 +58,8 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
       return res.status(400).json({ error: 'API key is required' });
     }
 
-    // Read the file as binary data
-    const fileData = fs.readFileSync(req.file.path);
+    // Get file buffer instead of reading from disk
+    const fileBuffer = req.file.buffer;
     
     // Prepare multipart form data
     const formData = new URLSearchParams();
@@ -131,10 +117,10 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
     console.log('Making API request with these params:');
     console.log('Model ID:', req.body.modelId || 'scribe_v1');
     console.log('Language Code:', req.body.languageCode || 'auto');
-    console.log('Tag Audio Events:', req.body.tagAudioEvents === 'true');
-    console.log('Diarize:', req.body.diarize === 'true');
+    console.log('Tag Audio Events:', tagAudioEvents);
+    console.log('Diarize:', diarize);
     console.log('Number of Speakers:', req.body.numSpeakers || 'auto');
-    console.log('Timestamps Granularity:', req.body.timestampsGranularity || 'word');
+    console.log('Timestamps Granularity:', timestampsGranularity || 'word');
     console.log('Additional Formats:', additionalFormats.length > 0 ? JSON.stringify(additionalFormats) : 'none');
 
     // Create a boundary for the multipart form
@@ -152,7 +138,7 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
     
     // Add the file
     requestBody += `--${boundary}\r\n`;
-    requestBody += `Content-Disposition: form-data; name="file"; filename="${path.basename(req.file.path)}"\r\n`;
+    requestBody += `Content-Disposition: form-data; name="file"; filename="${req.file.originalname}"\r\n`;
     requestBody += `Content-Type: ${req.file.mimetype}\r\n\r\n`;
     
     // Convert text part to buffer
@@ -164,7 +150,7 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
     // Combine all buffers
     const requestBodyBuffer = Buffer.concat([
       textBuffer,
-      fileData,
+      fileBuffer,
       closingBuffer
     ]);
 
@@ -183,23 +169,11 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
       }
     );
 
-    // Delete the temporary file
-    fs.unlinkSync(req.file.path);
-
     // Return the transcription result
     res.json(response.data);
     
   } catch (error) {
     console.error('Error during transcription:', error);
-    
-    // Delete the temporary file if it exists
-    if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (err) {
-        console.error('Error deleting file:', err);
-      }
-    }
     
     // Return appropriate error information
     if (error.response) {
@@ -240,7 +214,12 @@ app.post('/api/transcribe', upload.single('audioFile'), async (req, res) => {
   }
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+// For Vercel serverless deployment
+module.exports = app;
+
+// Start the server only in non-production environment
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+} 
